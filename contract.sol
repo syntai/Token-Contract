@@ -1,83 +1,67 @@
-pragma solidity ^0.4.11;
- 
-contract Token {
-    string public symbol = "";
-    string public name = "";
-    uint8 public constant decimals = 18;
-    uint256 _totalSupply = 0;
-    address owner = 0;
-    bool setupDone = false;
-	
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
-    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
- 
-    mapping(address => uint256) balances;
- 
-    mapping(address => mapping (address => uint256)) allowed;
- 
-    function Token(address adr) {
-		owner = adr;        
+/*
+Implements EIP20 token standard: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md
+.*/
+
+
+pragma solidity ^0.4.21;
+
+import "./EIP20Interface.sol";
+
+
+contract SyntheticsAI is EIP20Interface {
+
+    uint256 constant private MAX_UINT256 = 2**256 - 1;
+    mapping (address => uint256) public balances;
+    mapping (address => mapping (address => uint256)) public allowed;
+
+    string public name;
+    uint8 public decimals;
+    string public symbol;
+
+    function SyntheticsAI(
+        uint256 _initialAmount,
+        string _tokenName,
+        uint8 _decimalUnits,
+        string _tokenSymbol
+    ) public {
+        balances[msg.sender] = _initialAmount;
+        totalSupply = _initialAmount;
+        name = _tokenName;
+        decimals = _decimalUnits;
+        symbol = _tokenSymbol;
     }
-	
-	function SetupToken(string tokenName, string tokenSymbol, uint256 tokenSupply)
-	{
-		if (msg.sender == owner && setupDone == false)
-		{
-			symbol = tokenSymbol;
-			name = tokenName;
-			_totalSupply = tokenSupply * 1000000000000000000;
-			balances[owner] = _totalSupply;
-			setupDone = true;
-		}
-	}
- 
-    function totalSupply() constant returns (uint256 totalSupply) {        
-		return _totalSupply;
-    }
- 
-    function balanceOf(address _owner) constant returns (uint256 balance) {
-        return balances[_owner];
-    }
- 
-    function transfer(address _to, uint256 _amount) returns (bool success) {
-        if (balances[msg.sender] >= _amount 
-            && _amount > 0
-            && balances[_to] + _amount > balances[_to]) {
-            balances[msg.sender] -= _amount;
-            balances[_to] += _amount;
-            Transfer(msg.sender, _to, _amount);
-            return true;
-        } else {
-            return false;
-        }
-    }
- 
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) returns (bool success) {
-        if (balances[_from] >= _amount
-            && allowed[_from][msg.sender] >= _amount
-            && _amount > 0
-            && balances[_to] + _amount > balances[_to]) {
-            balances[_from] -= _amount;
-            allowed[_from][msg.sender] -= _amount;
-            balances[_to] += _amount;
-            Transfer(_from, _to, _amount);
-            return true;
-        } else {
-            return false;
-        }
-    }
- 
-    function approve(address _spender, uint256 _amount) returns (bool success) {
-        allowed[msg.sender][_spender] = _amount;
-        Approval(msg.sender, _spender, _amount);
+
+    function transfer(address _to, uint256 _value) public returns (bool success) {
+        require(balances[msg.sender] >= _value);
+        balances[msg.sender] -= _value;
+        balances[_to] += _value;
+        emit Transfer(msg.sender, _to, _value);
         return true;
     }
- 
-    function allowance(address _owner, address _spender) constant returns (uint256 remaining) {
+
+    function transferFrom(address _from, address _to, uint256 _value) public returns (bool success) {
+        uint256 allowance = allowed[_from][msg.sender];
+        require(balances[_from] >= _value && allowance >= _value);
+        balances[_to] += _value;
+        balances[_from] -= _value;
+        if (allowance < MAX_UINT256) {
+            allowed[_from][msg.sender] -= _value;
+        }
+        emit Transfer(_from, _to, _value);
+        return true;
+    }
+
+    function balanceOf(address _owner) public view returns (uint256 balance) {
+        return balances[_owner];
+    }
+
+    function approve(address _spender, uint256 _value) public returns (bool success) {
+        allowed[msg.sender][_spender] = _value;
+        emit Approval(msg.sender, _spender, _value);
+        return true;
+    }
+
+    function allowance(address _owner, address _spender) public view returns (uint256 remaining) {
         return allowed[_owner][_spender];
     }
 }
